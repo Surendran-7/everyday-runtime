@@ -3,8 +3,10 @@ import { RestApiClient } from 'twenty-client-sdk/rest';
 import { enqueueSnackbar } from 'twenty-sdk/front-component';
 
 import { createHouseholdActions } from 'src/data/household-actions';
+import { useI18n } from 'src/ui/i18n';
 import type { HouseholdActions } from 'src/data/household-actions';
 import { createHouseholdRepository } from 'src/data/household-repository';
+import { pricesByProduct, toPricePoints } from 'src/domain/deals';
 import { buildOverview } from 'src/domain/shopping';
 import type { HouseholdSnapshot, ProductOverview } from 'src/domain/shopping';
 
@@ -33,6 +35,7 @@ export const useHousehold = () => {
   const [announcement, setAnnouncement] = useState('');
   const [now, setNow] = useState(() => new Date());
   const isMounted = useRef(true);
+  const { t } = useI18n();
 
   const repository = useMemo(
     () => createHouseholdRepository(new RestApiClient()),
@@ -86,7 +89,7 @@ export const useHousehold = () => {
           notify(successMessage, 'success');
         }
       } catch (error) {
-        const message = `Could not save: ${errorMessage(error)}`;
+        const message = t('Could not save: {error}', { error: errorMessage(error) });
 
         setAnnouncement(message);
         notify(message, 'error');
@@ -96,7 +99,7 @@ export const useHousehold = () => {
         }
       }
     },
-    [actions, reload],
+    [actions, reload, t],
   );
 
   const overview: ProductOverview[] = useMemo(
@@ -104,9 +107,19 @@ export const useHousehold = () => {
     [snapshot, now],
   );
 
+  const prices = useMemo(
+    () =>
+      pricesByProduct(
+        toPricePoints(snapshot?.purchases ?? [], snapshot?.priceObservations ?? []),
+        now,
+      ),
+    [snapshot, now],
+  );
+
   return {
     snapshot,
     overview,
+    prices,
     now,
     loadState,
     loadError,

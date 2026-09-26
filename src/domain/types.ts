@@ -1,3 +1,5 @@
+import type { Message } from 'src/domain/messages';
+
 // Framework-independent domain model of Everyday Runtime.
 // Nothing in src/domain may import from Twenty, React or any runtime API:
 // the inference engine must stay a pure, deterministic, testable function.
@@ -50,6 +52,8 @@ export type Product = {
   barcode: string | null;
   typicalPurchaseQuantity: number | null;
   archived: boolean;
+  shelfLifeDays: number | null;
+  priceAlertUnitPrice: number | null;
 };
 
 export type Observation = {
@@ -74,6 +78,21 @@ export type ShoppingItem = {
   createdAt: Date;
   purchasedAt: Date | null;
   dismissedAt: Date | null;
+};
+
+export type PriceObservationSource = 'MANUAL' | 'RECEIPT' | 'OPEN_PRICES';
+
+// A price seen somewhere (store shelf, flyer, receipt, community data).
+export type PriceObservation = {
+  id: string;
+  productId: string;
+  priceAmount: number;
+  priceCurrency: string;
+  // Quantity in the product's unit that the price is for.
+  packQuantity: number;
+  store: string | null;
+  observedAt: Date;
+  source: PriceObservationSource;
 };
 
 export type Purchase = {
@@ -111,6 +130,9 @@ export type NeedAssessment = {
   reason: string;
   // Longer, ordered explanation lines for the "why?" panel.
   factors: string[];
+  // The same texts as translatable messages (render with renderMessage).
+  reasonMessage: Message;
+  factorMessages: Message[];
   lastPurchasedAt: Date | null;
   typicalIntervalDays: number | null;
   purchaseCount: number;

@@ -70,6 +70,10 @@ export const APP_STYLES = `
 .er-app :focus-visible { outline: 3px solid var(--er-focus); outline-offset: 2px; }
 
 .er-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.er-header-inner { position: relative; }
+.er-lang { position: absolute; top: 0; right: 0; display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--er-surface-2); }
+.er-lang-option { min-height: 32px; min-width: 40px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--er-muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+.er-lang-option.er-lang-active { background: var(--er-surface); color: var(--er-text); box-shadow: var(--er-shadow); }
 .er-header { padding: 16px 16px 0; }
 @container er (max-width: 480px) {
   .er-header { padding-top: 10px; }
@@ -212,6 +216,13 @@ export const APP_STYLES = `
 .er-btn-ghost:hover { background: var(--er-surface-2); color: var(--er-text); }
 .er-btn-small { min-height: 36px; padding: 0 12px; font-size: 14px; }
 
+.er-price { margin-top: 8px; }
+.er-verdict { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--er-surface); font-size: 14px; }
+.er-verdict-great, .er-verdict-good { background: var(--er-low-soft); color: var(--er-low); }
+.er-verdict-expensive { background: var(--er-high-soft); color: var(--er-high); }
+.er-verdict-plan { display: block; margin-top: 4px; color: var(--er-text); }
+.er-deal { border-left: 4px solid var(--er-low); }
+.er-question { border-left: 4px solid var(--er-confirmed); }
 .er-why { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--er-surface-2); font-size: 14px; }
 .er-why ul { margin: 6px 0 0; padding-left: 18px; }
 .er-why li + li { margin-top: 4px; }

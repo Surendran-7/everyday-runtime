@@ -1,7 +1,12 @@
+import { selectDeals } from 'src/domain/deals';
+import { selectQuestions } from 'src/domain/questions';
+import { moneyText, renderMessage } from 'src/domain/messages';
 import { selectProbablyNeeded } from 'src/domain/shopping';
 import { summarizeCount } from 'src/domain/presentation';
 import { EmptyState, NeedCard, QuickAddForm } from 'src/ui/components';
 import type { Household } from 'src/ui/use-household';
+import { useI18n } from 'src/ui/i18n';
+import { useSkippedQuestions } from 'src/ui/use-skipped-questions';
 
 export type Tab = 'now' | 'list' | 'products' | 'activity';
 
@@ -11,9 +16,12 @@ export const WelcomeState = ({
   household,
 }: {
   household: Household;
-}) => (
+}) => {
+  const { t, lang } = useI18n();
+
+  return (
   <EmptyState
-    title="Welcome to Everyday Runtime"
+    title={t('Welcome to Everyday Runtime')}
     actions={
       <button
         type="button"
@@ -22,20 +30,19 @@ export const WelcomeState = ({
         onClick={() =>
           household.run(
             'demo',
-            (actions) => actions.loadDemoHousehold(household.snapshot?.products ?? []),
-            'Demo household loaded',
+            (actions) => actions.loadDemoHousehold(household.snapshot?.products ?? [], lang),
+            t('Demo household loaded'),
           )
         }
       >
-        {household.busyKey === 'demo' ? 'Loading…' : 'Load demo household'}
+        {household.busyKey === 'demo' ? t('Loading…') : t('Load demo household')}
       </button>
     }
   >
-    Tell the app what you buy, what runs out and what you still have. It learns your
-    rhythm and suggests what you probably need — with a reason for every guess. Start
-    by adding something below, or load a small demo household to see how it works.
+    {t('Tell the app what you buy, what runs out and what you still have. It learns your rhythm and suggests what you probably need — with a reason for every guess. Start by adding something below, or load a small demo household to see how it works.')}
   </EmptyState>
-);
+  );
+};
 
 export const NowScreen = ({
   household,
@@ -45,10 +52,13 @@ export const NowScreen = ({
   onNavigate: (tab: Tab) => void;
 }) => {
   const { overview, busyKey, run, snapshot } = household;
+  const { t, lang } = useI18n();
   const needed = selectProbablyNeeded(overview);
   const onList = needed.filter((entry) => entry.openItem !== null).length;
   const suggested = needed.length - onList;
-  const toCheck = overview.filter((entry) => entry.assessment.basis === 'CONFLICT');
+  const [skipped, skipQuestion] = useSkippedQuestions(household.now);
+  const questions = selectQuestions(overview, household.now, skipped);
+  const deals = selectDeals(overview, household.prices, household.now);
   const openItems = (snapshot?.shoppingItems ?? []).filter((item) => item.status === 'OPEN');
 
   if (overview.length === 0) {
@@ -56,14 +66,14 @@ export const NowScreen = ({
       <div className="er-stack">
         <WelcomeState household={household} />
         <QuickAddForm
-          label="Add to shopping list"
-          placeholder="Add something… e.g. 2 milk"
-          submitLabel="Add"
+          label={t('Add to shopping list')}
+          placeholder={t('Add something… e.g. 2 milk')}
+          submitLabel={t('Add')}
           busy={busyKey !== null}
           onSubmit={(value) =>
             run('quick-add', (actions) =>
               actions.quickAddToList(value, snapshot?.products ?? [], openItems),
-            'Added to your list')
+            t('Added to your list'))
           }
         />
       </div>
@@ -73,49 +83,116 @@ export const NowScreen = ({
   return (
     <div className="er-stack">
       <section className="er-card er-hero" aria-labelledby="er-now-title">
-        <p className="er-hero-eyebrow">SHOPPING</p>
+        <p className="er-hero-eyebrow">{t('SHOPPING')}</p>
         <h2 className="er-hero-title" id="er-now-title">
-          {summarizeCount(needed.length)}
+          {summarizeCount(needed.length, lang)}
         </h2>
         <p className="er-hero-sub">
           {needed.length === 0
-            ? 'Nothing looks low. We will tell you when something probably runs out.'
-            : `${onList} on your list · ${suggested} suggested`}
+            ? t('Nothing looks low. We will tell you when something probably runs out.')
+            : t('{onList} on your list · {suggested} suggested', { onList, suggested })}
         </p>
         <button
           type="button"
           className="er-btn er-btn-primary er-btn-block"
           onClick={() => onNavigate('list')}
         >
-          Open shopping list
+          {t('Open shopping list')}
         </button>
       </section>
 
-      {toCheck.length > 0 && (
-        <section aria-labelledby="er-check-title">
-          <h2 className="er-section-title" id="er-check-title">
-            Please check
+      {deals.length > 0 && (
+        <section aria-labelledby="er-deals-title">
+          <h2 className="er-section-title" id="er-deals-title">
+            {t('Good prices for you')}
           </h2>
           <div className="er-need-grid">
-            {toCheck.map((entry) => (
-              <NeedCard key={entry.product.id} overview={entry} busy={busyKey === entry.product.id}>
-                <button
-                  type="button"
-                  className="er-btn er-btn-small"
-                  disabled={busyKey !== null}
-                  onClick={() => run(entry.product.id, (actions) => actions.markEmpty(entry), `${entry.product.name} marked empty`)}
-                >
-                  It’s empty
-                </button>
-                <button
-                  type="button"
-                  className="er-btn er-btn-small"
-                  disabled={busyKey !== null}
-                  onClick={() => run(entry.product.id, (actions) => actions.markInStock(entry), `Noted: you still have ${entry.product.name}`)}
-                >
-                  Still have it
-                </button>
-              </NeedCard>
+            {deals.map((deal) => {
+              const unit = deal.overview.product.defaultUnit;
+
+              return (
+                <article key={deal.overview.product.id} className="er-card er-deal" aria-label={t('Price for {name}', { name: deal.overview.product.name })}>
+                  <div className="er-row-top">
+                    <h3 className="er-name">{deal.overview.product.name}</h3>
+                    <span className="er-percent er-tone-low">
+                      {moneyText(deal.point.unitPrice, deal.point.currency, lang)}
+                      {unit ? <span className="er-percent-label">{t('per {unit}', { unit })}</span> : null}
+                    </span>
+                  </div>
+                  <p className="er-reason">
+                    {deal.alertTriggered ? t('Your price alert: ') : ''}
+                    {renderMessage(deal.judgement.reasonMessage, lang)}
+                    {deal.point.store ? t(' At {store}.', { store: deal.point.store }) : ''}
+                  </p>
+                  {deal.plan && <p className="er-headline">{renderMessage(deal.plan.reasonMessage, lang)}</p>}
+                  <div className="er-chips">
+                    <span className="er-chip er-chip-estimate">{t('Estimate from your price history')}</span>
+                  </div>
+                  {deal.overview.openItem === null && (
+                    <div className="er-actions">
+                      <button
+                        type="button"
+                        className="er-btn er-btn-primary er-btn-small"
+                        disabled={busyKey !== null}
+                        onClick={() =>
+                          run(deal.overview.product.id, (actions) => actions.addManually(deal.overview), t('{name} added to your list', { name: deal.overview.product.name }))
+                        }
+                      >
+                        {t('Add to list')}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {questions.length > 0 && (
+        <section aria-labelledby="er-questions-title">
+          <h2 className="er-section-title" id="er-questions-title">
+            {t('Quick questions')}
+          </h2>
+          <div className="er-need-grid">
+            {questions.map(({ overview: entry, reasonMessage }) => (
+              <article
+                key={entry.product.id}
+                className="er-card er-question"
+                aria-label={t('Question about {name}', { name: entry.product.name })}
+              >
+                <h3 className="er-name">{t('Still enough {name}?', { name: entry.product.name })}</h3>
+                <p className="er-reason">{renderMessage(reasonMessage, lang)}</p>
+                <div className="er-actions">
+                  <button
+                    type="button"
+                    className="er-btn er-btn-small"
+                    disabled={busyKey !== null}
+                    onClick={() =>
+                      run(entry.product.id, (actions) => actions.markInStock(entry), t('Thanks — noted you still have {name}', { name: entry.product.name }))
+                    }
+                  >
+                    {t('Yes, enough')}
+                  </button>
+                  <button
+                    type="button"
+                    className="er-btn er-btn-primary er-btn-small"
+                    disabled={busyKey !== null}
+                    onClick={() =>
+                      run(entry.product.id, (actions) => actions.markEmpty(entry), t('{name} added to your list', { name: entry.product.name }))
+                    }
+                  >
+                    {t('Running out')}
+                  </button>
+                  <button
+                    type="button"
+                    className="er-btn er-btn-ghost er-btn-small"
+                    onClick={() => skipQuestion(entry.product.id)}
+                  >
+                    {t('Not now')}
+                  </button>
+                </div>
+              </article>
             ))}
           </div>
         </section>
@@ -124,7 +201,7 @@ export const NowScreen = ({
       {needed.length > 0 && (
         <section aria-labelledby="er-needed-title">
           <h2 className="er-section-title" id="er-needed-title">
-            Probably needed
+            {t('Probably needed')}
           </h2>
           <div className="er-need-grid">
             {needed.slice(0, MAX_CARDS).map((entry) => (
@@ -135,10 +212,10 @@ export const NowScreen = ({
                     className="er-btn er-btn-primary er-btn-small"
                     disabled={busyKey !== null}
                     onClick={() =>
-                      run(entry.product.id, (actions) => actions.acceptSuggestion(entry), `${entry.product.name} added to your list`)
+                      run(entry.product.id, (actions) => actions.acceptSuggestion(entry), t('{name} added to your list', { name: entry.product.name }))
                     }
                   >
-                    Add to list
+                    {t('Add to list')}
                   </button>
                 )}
                 <button
@@ -146,10 +223,10 @@ export const NowScreen = ({
                   className="er-btn er-btn-small"
                   disabled={busyKey !== null}
                   onClick={() =>
-                    run(entry.product.id, (actions) => actions.markInStock(entry), `Noted: you still have ${entry.product.name}`)
+                    run(entry.product.id, (actions) => actions.markInStock(entry), t('Noted: you still have {name}', { name: entry.product.name }))
                   }
                 >
-                  Still have it
+                  {t('Still have it')}
                 </button>
               </NeedCard>
             ))}
@@ -160,7 +237,7 @@ export const NowScreen = ({
               className="er-btn er-btn-ghost er-btn-block"
               onClick={() => onNavigate('list')}
             >
-              Show all {needed.length}
+              {t('Show all {count}', { count: needed.length })}
             </button>
           )}
         </section>
@@ -168,17 +245,17 @@ export const NowScreen = ({
 
       <section aria-labelledby="er-quick-title">
         <h2 className="er-section-title" id="er-quick-title">
-          Need something else?
+          {t('Need something else?')}
         </h2>
         <QuickAddForm
-          label="Add to shopping list"
-          placeholder="Add something… e.g. 2 milk"
-          submitLabel="Add"
+          label={t('Add to shopping list')}
+          placeholder={t('Add something… e.g. 2 milk')}
+          submitLabel={t('Add')}
           busy={busyKey !== null}
           onSubmit={(value) =>
             run('quick-add', (actions) =>
               actions.quickAddToList(value, snapshot?.products ?? [], openItems),
-            'Added to your list')
+            t('Added to your list'))
           }
         />
       </section>
