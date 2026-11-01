@@ -262,23 +262,21 @@ export const createHouseholdActions = (
 
       return usable.length;
     },
-async updateProductSettings(
-  product: Product,
-  settings: {
-    priceAlertUnitPrice?: number | null;
-    shelfLifeDays?: number | null;
-    barcode?: string | null;
-  },
-) {
-  await repository.updateProduct(product.id, settings);
-},
+    async updateProductSettings(
+      product: Product,
+      settings: {
+        priceAlertUnitPrice?: number | null;
+        shelfLifeDays?: number | null;
+        barcode?: string | null;
+      },
+    ) {
+      await repository.updateProduct(product.id, settings);
+    },
 
-async setCategory(
-  overview: ProductOverview,
-  category: ProductCategory,
-) {
-  await repository.updateProduct(overview.product.id, { category });
-},
+    async setCategory(overview: ProductOverview, category: ProductCategory) {
+      await repository.updateProduct(overview.product.id, { category });
+    },
+
     async archiveProduct(overview: ProductOverview) {
       await repository.updateProduct(overview.product.id, { archived: true });
 

@@ -243,16 +243,16 @@ describe('household actions', () => {
     });
   });
   it('sets a product category', async () => {
-  const { actions, calls } = setup();
+    const { actions, calls } = setup();
 
-  await actions.setCategory(overviewFor(), 'DAIRY');
+    await actions.setCategory(overviewFor(), 'DAIRY');
 
-  expect(calls[0]).toMatchObject({
-    method: 'PATCH',
-    path: '/rest/products/milk',
-    body: { category: 'DAIRY' },
+    expect(calls[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/rest/products/milk',
+      body: { category: 'DAIRY' },
+    });
   });
-});
 });
 
 
